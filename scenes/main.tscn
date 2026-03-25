@@ -1,0 +1,315 @@
+[gd_scene format=3 uid="uid://b7ktua1ag886r"]
+
+[ext_resource type="Script" uid="uid://dfebw46kepok1" path="res://scripts/main.gd" id="1_o5qli"]
+
+[node name="Main" type="Node2D" unique_id=1094811540]
+script = ExtResource("1_o5qli")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1534244297]
+offset_right = 540.0
+offset_bottom = 960.0
+color = Color(0.13, 0.15, 0.13, 1)
+
+[node name="EnemyZone" type="ColorRect" parent="." unique_id=597153318]
+offset_top = 80.0
+offset_right = 540.0
+offset_bottom = 360.0
+color = Color(0.3, 0.08, 0.08, 0.4)
+
+[node name="NeutralZone" type="ColorRect" parent="." unique_id=591825561]
+offset_top = 360.0
+offset_right = 540.0
+offset_bottom = 600.0
+color = Color(0.2, 0.2, 0.15, 0.3)
+
+[node name="PlayerZone" type="ColorRect" parent="." unique_id=495589389]
+offset_top = 600.0
+offset_right = 540.0
+offset_bottom = 880.0
+color = Color(0.08, 0.15, 0.3, 0.4)
+
+[node name="UI" type="CanvasLayer" parent="." unique_id=498515539]
+
+[node name="EnemyCastle" type="Control" parent="UI" unique_id=1740802370]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 40.0
+offset_top = 20.0
+offset_right = 500.0
+offset_bottom = 76.0
+
+[node name="BG" type="ColorRect" parent="UI/EnemyCastle" unique_id=1276660094]
+layout_mode = 0
+offset_right = 460.0
+offset_bottom = 56.0
+color = Color(0.5, 0.1, 0.1, 1)
+
+[node name="Label" type="Label" parent="UI/EnemyCastle" unique_id=256919221]
+modulate = Color(1, 0.8, 0.8, 1)
+layout_mode = 0
+offset_left = 10.0
+offset_top = 4.0
+offset_right = 10.0
+offset_bottom = 4.0
+theme_override_font_sizes/font_size = 16
+text = "敵の城壁"
+
+[node name="HPBar" type="ProgressBar" parent="UI/EnemyCastle" unique_id=1517216913]
+layout_mode = 0
+offset_top = 36.0
+offset_right = 460.0
+offset_bottom = 63.0
+max_value = 500.0
+value = 100.0
+show_percentage = false
+
+[node name="PlayerCastle" type="Control" parent="UI" unique_id=1780710757]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 40.0
+offset_top = 760.0
+offset_right = 500.0
+offset_bottom = 816.0
+
+[node name="BG" type="ColorRect" parent="UI/PlayerCastle" unique_id=1173500668]
+layout_mode = 0
+offset_right = 460.0
+offset_bottom = 56.0
+color = Color(0.1, 0.2, 0.5, 1)
+
+[node name="Label" type="Label" parent="UI/PlayerCastle" unique_id=1104012572]
+modulate = Color(0.8, 0.9, 1, 1)
+layout_mode = 0
+offset_left = 10.0
+offset_top = 4.0
+offset_right = 10.0
+offset_bottom = 4.0
+theme_override_font_sizes/font_size = 16
+text = "自分の城壁"
+
+[node name="HPBar" type="ProgressBar" parent="UI/PlayerCastle" unique_id=2056526881]
+layout_mode = 0
+offset_top = 36.0
+offset_right = 460.0
+offset_bottom = 63.0
+max_value = 500.0
+value = 100.0
+show_percentage = false
+
+[node name="ManaPannel" type="Control" parent="UI" unique_id=372259369]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 40.0
+offset_top = 828.0
+offset_right = 500.0
+offset_bottom = 858.0
+
+[node name="ManaBar" type="ProgressBar" parent="UI/ManaPannel" unique_id=1621149207]
+layout_mode = 0
+offset_right = 460.0
+offset_bottom = 30.0
+max_value = 10.0
+value = 5.0
+show_percentage = false
+
+[node name="ManaLabel" type="Label" parent="UI/ManaPannel" unique_id=904260415]
+layout_mode = 0
+offset_left = 150.0
+offset_top = 5.0
+offset_right = 150.0
+offset_bottom = 5.0
+theme_override_font_sizes/font_size = 14
+text = "5 / 10"
+
+[node name="CardPanel" type="Control" parent="UI" unique_id=1023958525]
+layout_mode = 3
+anchors_preset = 0
+offset_top = 868.0
+offset_right = 540.0
+offset_bottom = 960.0
+
+[node name="BG" type="ColorRect" parent="UI/CardPanel" unique_id=357515805]
+layout_mode = 0
+offset_right = 540.0
+offset_bottom = 92.0
+color = Color(0.08, 0.08, 0.12, 1)
+
+[node name="Card0" type="ColorRect" parent="UI/CardPanel" unique_id=2143367805]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 6.0
+offset_right = 118.0
+offset_bottom = 86.0
+color = Color(0.22, 0.22, 0.32, 1)
+
+[node name="Stripe" type="ColorRect" parent="UI/CardPanel/Card0" unique_id=946882363]
+layout_mode = 0
+offset_right = 108.0
+offset_bottom = 6.0
+color = Color(0.2, 0.4, 0.9, 1)
+
+[node name="NameLabel" type="Label" parent="UI/CardPanel/Card0" unique_id=1418118365]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 14.0
+offset_right = 8.0
+offset_bottom = 14.0
+theme_override_font_sizes/font_size = 18
+text = "連射"
+
+[node name="CostLabel" type="Label" parent="UI/CardPanel/Card0" unique_id=78423436]
+modulate = Color(0.4, 0.75, 1, 1)
+layout_mode = 0
+offset_left = 8.0
+offset_top = 46.0
+offset_right = 8.0
+offset_bottom = 46.0
+theme_override_font_sizes/font_size = 22
+text = "2"
+
+[node name="CostMark" type="Label" parent="UI/CardPanel/Card0" unique_id=2089585717]
+modulate = Color(0.5, 0.7, 1, 1)
+layout_mode = 0
+offset_left = 36.0
+offset_top = 54.0
+offset_right = 36.0
+offset_bottom = 54.0
+theme_override_font_sizes/font_size = 10
+text = "mana"
+
+[node name="Card1" type="ColorRect" parent="UI/CardPanel" unique_id=382316415]
+layout_mode = 0
+offset_left = 140.0
+offset_top = 6.0
+offset_right = 248.0
+offset_bottom = 86.0
+color = Color(0.22, 0.22, 0.32, 1)
+
+[node name="Stripe" type="ColorRect" parent="UI/CardPanel/Card1" unique_id=1340661581]
+layout_mode = 0
+offset_right = 108.0
+offset_bottom = 6.0
+color = Color(0.2, 0.7, 0.3, 1)
+
+[node name="NameLabel" type="Label" parent="UI/CardPanel/Card1" unique_id=561057714]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 14.0
+offset_right = 8.0
+offset_bottom = 14.0
+theme_override_font_sizes/font_size = 18
+text = "爆弾"
+
+[node name="CostLabel" type="Label" parent="UI/CardPanel/Card1" unique_id=1732459981]
+modulate = Color(0.4, 0.75, 1, 1)
+layout_mode = 0
+offset_left = 8.0
+offset_top = 46.0
+offset_right = 8.0
+offset_bottom = 46.0
+theme_override_font_sizes/font_size = 22
+text = "3"
+
+[node name="CostMark" type="Label" parent="UI/CardPanel/Card1" unique_id=185086004]
+modulate = Color(0.5, 0.7, 1, 1)
+layout_mode = 0
+offset_left = 36.0
+offset_top = 54.0
+offset_right = 36.0
+offset_bottom = 54.0
+theme_override_font_sizes/font_size = 10
+text = "mana"
+
+[node name="Card2" type="ColorRect" parent="UI/CardPanel" unique_id=1757246684]
+layout_mode = 0
+offset_left = 270.0
+offset_top = 6.0
+offset_right = 378.0
+offset_bottom = 86.0
+color = Color(0.22, 0.22, 0.32, 1)
+
+[node name="Stripe" type="ColorRect" parent="UI/CardPanel/Card2" unique_id=151891073]
+layout_mode = 0
+offset_right = 108.0
+offset_bottom = 6.0
+color = Color(0.15, 0.75, 0.8, 1)
+
+[node name="NameLabel" type="Label" parent="UI/CardPanel/Card2" unique_id=1752199206]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 14.0
+offset_right = 8.0
+offset_bottom = 14.0
+theme_override_font_sizes/font_size = 18
+text = "飛行"
+
+[node name="CostLabel" type="Label" parent="UI/CardPanel/Card2" unique_id=554912318]
+modulate = Color(0.4, 0.75, 1, 1)
+layout_mode = 0
+offset_left = 8.0
+offset_top = 46.0
+offset_right = 8.0
+offset_bottom = 46.0
+theme_override_font_sizes/font_size = 22
+text = "3"
+
+[node name="CostMark" type="Label" parent="UI/CardPanel/Card2" unique_id=1409840587]
+modulate = Color(0.5, 0.7, 1, 1)
+layout_mode = 0
+offset_left = 36.0
+offset_top = 54.0
+offset_right = 36.0
+offset_bottom = 54.0
+theme_override_font_sizes/font_size = 10
+text = "mana"
+
+[node name="Card3" type="ColorRect" parent="UI/CardPanel" unique_id=457730623]
+layout_mode = 0
+offset_left = 400.0
+offset_top = 6.0
+offset_right = 508.0
+offset_bottom = 86.0
+color = Color(0.22, 0.22, 0.32, 1)
+
+[node name="Stripe" type="ColorRect" parent="UI/CardPanel/Card3" unique_id=99901690]
+layout_mode = 0
+offset_right = 108.0
+offset_bottom = 6.0
+color = Color(0.5, 0.2, 0.85, 1)
+
+[node name="NameLabel" type="Label" parent="UI/CardPanel/Card3" unique_id=1524891939]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 14.0
+offset_right = 8.0
+offset_bottom = 14.0
+theme_override_font_sizes/font_size = 18
+text = "重装"
+
+[node name="CostLabel" type="Label" parent="UI/CardPanel/Card3" unique_id=1514737287]
+modulate = Color(0.4, 0.75, 1, 1)
+layout_mode = 0
+offset_left = 8.0
+offset_top = 46.0
+offset_right = 8.0
+offset_bottom = 46.0
+theme_override_font_sizes/font_size = 22
+text = "4"
+
+[node name="CostMark" type="Label" parent="UI/CardPanel/Card3" unique_id=833888880]
+modulate = Color(0.5, 0.7, 1, 1)
+layout_mode = 0
+offset_left = 36.0
+offset_top = 54.0
+offset_right = 36.0
+offset_bottom = 54.0
+theme_override_font_sizes/font_size = 10
+text = "mana"
+
+[node name="GameOverLabel" type="Label" parent="UI" unique_id=391624037]
+visible = false
+offset_left = 110.0
+offset_top = 440.0
+offset_right = 110.0
+offset_bottom = 440.0
+theme_override_font_sizes/font_size = 52

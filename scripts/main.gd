@@ -34,12 +34,13 @@ const ENEMY_SPAWN_COST = 3
 var vp_w: float = 540.0
 var vp_h: float = 960.0
 
+var my_castle_bg: ColorRect
+var opp_castle_bg: ColorRect
+var my_hp_bar: ProgressBar
+var opp_hp_bar: ProgressBar
+
 @onready var mana_bar = $UI/ManaPannel/ManaBar
 @onready var mana_label = $UI/ManaPannel/ManaLabel
-@onready var player_hp_bar = $UI/PlayerCastle/HPBar
-@onready var enemy_hp_bar = $UI/EnemyCastle/HPBar
-@onready var player_castle_bg = $UI/PlayerCastle/BG
-@onready var enemy_castle_bg = $UI/EnemyCastle/BG
 
 func _ready() -> void:
 	var vp = get_viewport().get_visible_rect().size
@@ -52,20 +53,36 @@ func _ready() -> void:
 	if is_pvp:
 		my_team = 0 if multiplayer.is_server() else 1
 		multiplayer.peer_disconnected.connect(_on_peer_disconnected)
-	print("main: is_pvp=", is_pvp, " my_team=", my_team)
+	print("main: my_team=", my_team)
 
-	# 赤チーム：180度回転（点対称）
-	# Transform2D の列ベクトル形式：
-	# column 0 = x軸方向 = (-1, 0)
-	# column 1 = y軸方向 = (0, -1)
-	# origin = (vp_w, vp_h)
+	# 赤チームはcanvas_transformで180度回転
+	# 回転後: 赤城壁(world上部)→画面下、青城壁(world下部)→画面上
+	# 両チームとも PlayerCastle(画面下)=自分、EnemyCastle(画面上)=敵 で統一
 	if my_team == 1:
 		var ct = Transform2D()
 		ct[0] = Vector2(-1.0, 0.0)
 		ct[1] = Vector2(0.0, -1.0)
 		ct[2] = Vector2(vp_w, vp_h)
 		get_viewport().canvas_transform = ct
-		print("canvas_transform set for red team")
+
+	# UI割り当て：両チームとも同じ（画面下=自分、画面上=敵）
+	my_castle_bg = $UI/PlayerCastle/BG
+	opp_castle_bg = $UI/EnemyCastle/BG
+	my_hp_bar = $UI/PlayerCastle/HPBar
+	opp_hp_bar = $UI/EnemyCastle/HPBar
+	$UI/PlayerCastle/Label.text = "自分の城壁"
+	$UI/EnemyCastle/Label.text = "敵の城壁"
+
+	# 自分の城壁色=自チームカラー、敵の城壁色=相手チームカラー
+	if my_team == 0:
+		my_castle_bg.color = Color(0.1, 0.2, 0.5)
+		opp_castle_bg.color = Color(0.5, 0.1, 0.1)
+	else:
+		my_castle_bg.color = Color(0.5, 0.1, 0.1)
+		opp_castle_bg.color = Color(0.1, 0.2, 0.5)
+
+	my_hp_bar.max_value = 500.0
+	opp_hp_bar.max_value = 500.0
 
 	if not is_pvp or my_team == 0:
 		_spawn_and_sync_huts()
@@ -215,14 +232,10 @@ func _apply_damage(side: int, amount: float) -> void:
 			_end_game(my_team != 1)
 
 func _get_mana_mult(t: float) -> int:
-	if t >= 60:
-		return 8
-	elif t >= 45:
-		return 4
-	elif t >= 30:
-		return 3
-	elif t >= 15:
-		return 2
+	if t >= 60: return 8
+	elif t >= 45: return 4
+	elif t >= 30: return 3
+	elif t >= 15: return 2
 	return 1
 
 func _process(delta: float) -> void:
@@ -258,26 +271,29 @@ func _spawn_com_unit() -> void:
 	add_child(unit)
 
 func _update_ui() -> void:
-	var my_hp = player_hp if my_team == 0 else enemy_hp
-	var opp_hp = enemy_hp if my_team == 0 else player_hp
 	mana_bar.value = mana
 	mana_label.text = str(int(mana)) + " / " + str(int(MANA_MAX))
-	player_hp_bar.value = my_hp
-	enemy_hp_bar.value = opp_hp
+	# 自分のHP: team0=player_hp(青城壁), team1=enemy_hp(赤城壁)
+	my_hp_bar.value = player_hp if my_team == 0 else enemy_hp
+	opp_hp_bar.value = enemy_hp if my_team == 0 else player_hp
 
 func _update_flash(delta: float) -> void:
-	if player_flash_timer > 0.0:
-		player_flash_timer -= delta
-		var t = clamp(player_flash_timer / FLASH_DURATION, 0.0, 1.0)
-		player_castle_bg.color = Color(0.1, 0.2, 0.5).lerp(Color(1.0, 0.1, 0.1), t)
+	player_flash_timer = max(0.0, player_flash_timer - delta)
+	enemy_flash_timer = max(0.0, enemy_flash_timer - delta)
+
+	var my_base = Color(0.1, 0.2, 0.5) if my_team == 0 else Color(0.5, 0.1, 0.1)
+	var my_ft = player_flash_timer if my_team == 0 else enemy_flash_timer
+	if my_ft > 0.0:
+		my_castle_bg.color = my_base.lerp(Color(1.0, 0.85, 0.1), clamp(my_ft / FLASH_DURATION, 0, 1))
 	else:
-		player_castle_bg.color = Color(0.1, 0.2, 0.5)
-	if enemy_flash_timer > 0.0:
-		enemy_flash_timer -= delta
-		var t = clamp(enemy_flash_timer / FLASH_DURATION, 0.0, 1.0)
-		enemy_castle_bg.color = Color(0.5, 0.1, 0.1).lerp(Color(1.0, 0.9, 0.1), t)
+		my_castle_bg.color = my_base
+
+	var opp_base = Color(0.5, 0.1, 0.1) if my_team == 0 else Color(0.1, 0.2, 0.5)
+	var opp_ft = enemy_flash_timer if my_team == 0 else player_flash_timer
+	if opp_ft > 0.0:
+		opp_castle_bg.color = opp_base.lerp(Color(1.0, 0.85, 0.1), clamp(opp_ft / FLASH_DURATION, 0, 1))
 	else:
-		enemy_castle_bg.color = Color(0.5, 0.1, 0.1)
+		opp_castle_bg.color = opp_base
 
 func spend_mana(cost: float) -> bool:
 	if mana >= cost:
@@ -292,6 +308,7 @@ func _end_game(win: bool) -> void:
 		u.set_process(false)
 	for h in get_tree().get_nodes_in_group("huts"):
 		h.set_physics_process(false)
+		h.set_process(false)
 	var label = $UI/GameOverLabel
 	label.text = "VICTORY!\n\nRキーでリスタート" if win else "GAME OVER\n\nRキーでリスタート"
 	label.modulate = Color(0.2, 0.9, 0.2) if win else Color(0.9, 0.2, 0.2)

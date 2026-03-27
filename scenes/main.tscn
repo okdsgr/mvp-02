@@ -34,9 +34,9 @@ color = Color(0.08, 0.15, 0.3, 0.4)
 layout_mode = 3
 anchors_preset = 0
 offset_left = 40.0
-offset_top = 20.0
+offset_top = 144.0
 offset_right = 500.0
-offset_bottom = 76.0
+offset_bottom = 200.0
 
 [node name="BG" type="ColorRect" parent="UI/EnemyCastle" unique_id=1276660094]
 layout_mode = 0

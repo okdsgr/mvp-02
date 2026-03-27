@@ -11,10 +11,7 @@ var spawn_cooldown: float = 3.0
 var spawn_timer: float = 0.0
 var captured_by: int = -1
 var captured_unit_type: int = 0
-
-# 現在攻撃中のチーム（索敵除外用）
-var attacker_team: int = -1  # -1=なし, 0=青, 1=赤
-
+var attacker_team: int = -1
 var attack_pressure: Array = [0.0, 0.0]
 var pressure_decay: float = 1.0
 
@@ -36,21 +33,16 @@ const UNIT_SPAWN_COLORS = [
 func _ready() -> void:
 	add_to_group("huts")
 
-func _physics_process(delta: float) -> void:
-	# HP自然回復（色問わず）
+func _process(delta: float) -> void:
 	if hp < max_hp:
 		hp = min(hp + hp_regen * delta, max_hp)
-
-	# 攻撃中チームのリセット（攻撃が止まったら解除）
 	attack_pressure[0] = max(0.0, attack_pressure[0] - pressure_decay * delta)
 	attack_pressure[1] = max(0.0, attack_pressure[1] - pressure_decay * delta)
-	# 攻撃プレッシャーがなくなったらattacker_teamリセット
 	if attacker_team >= 0 and attack_pressure[attacker_team] <= 0.0:
 		attacker_team = -1
-
 	queue_redraw()
 
-	# 満タン時にユニット生産
+func _physics_process(delta: float) -> void:
 	if state != HutState.NEUTRAL and captured_by >= 0 and hp >= max_hp * 0.99:
 		spawn_timer += delta
 		if spawn_timer >= spawn_cooldown:
@@ -70,12 +62,10 @@ func _spawn_unit() -> void:
 	main.add_child(unit)
 
 func can_be_attacked_by(team: int) -> bool:
-	# 味方小屋は攻撃不可
 	if state == HutState.PLAYER and team == 0:
 		return false
 	if state == HutState.ENEMY and team == 1:
 		return false
-	# ④: 既に別チームが攻撃中なら、同チーム以外は攻撃不可
 	if attacker_team >= 0 and attacker_team != team:
 		return false
 	return true
@@ -88,7 +78,7 @@ func take_damage(amount: float, att_team: int, att_unit_type: int) -> float:
 	hp -= amount
 	queue_redraw()
 	if hp <= 0:
-		return -hp  # 余剰（残りHP計算用）
+		return -hp
 	return 0.0
 
 func capture(team: int, unit_type: int, remaining_hp: float) -> void:
@@ -105,7 +95,17 @@ func capture(team: int, unit_type: int, remaining_hp: float) -> void:
 	if main.has_method("on_hut_captured"):
 		main.on_hut_captured(self, team)
 
+func _get_my_team() -> int:
+	var main = get_tree().current_scene
+	if main and "my_team" in main:
+		return main.my_team
+	return 0
+
 func _draw() -> void:
+	# 赤チームのcanvas_transform(180度回転)を打ち消す
+	if _get_my_team() == 1:
+		draw_set_transform(Vector2.ZERO, PI, Vector2.ONE)
+
 	var body_color = BODY_COLORS[state]
 	var accent_idx = clamp(hut_type if state == HutState.NEUTRAL else captured_unit_type, 0, 2)
 	var accent = TYPE_ACCENT[accent_idx]
@@ -117,7 +117,6 @@ func _draw() -> void:
 	if state != HutState.NEUTRAL:
 		draw_circle(Vector2(0, 8), 5, accent)
 
-	# 円グラフHP
 	var radius = 28.0
 	var center = Vector2(0, -52)
 	draw_circle(center, radius, Color(0.08, 0.08, 0.08, 0.75))
@@ -130,7 +129,6 @@ func _draw() -> void:
 	if hp_ratio > 0.01:
 		draw_arc(center, radius, -PI * 0.5, -PI * 0.5 + TAU * hp_ratio, 48, hp_color, 6.0)
 
-	# 攻撃プレッシャーリング
 	var blue_r = clamp(attack_pressure[0] / 200.0, 0, 1)
 	var red_r  = clamp(attack_pressure[1] / 200.0, 0, 1)
 	if blue_r > 0.01:

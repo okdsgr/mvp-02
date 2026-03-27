@@ -17,8 +17,9 @@ var _body_color: Color = Color(0.2, 0.5, 1.0)
 var state: int = UnitState.SCOUT
 var _locked_target = null
 
-const ENEMY_CASTLE_Y = 120.0
-const PLAYER_CASTLE_Y = 740.0
+# world座標での城壁Y（unit.gdは世界座標で動く）
+const ENEMY_CASTLE_Y = 214.0   # team0の敵城壁（上）
+const PLAYER_CASTLE_Y = 746.0  # team0の自城壁（下）
 const CASTLE_ATTACK_POWER = 5.0
 const HUT_ATTACK_POWER = 5.0
 
@@ -29,19 +30,22 @@ func setup(color: Color) -> void:
 	_body_color = color
 	queue_redraw()
 
+func _get_my_team() -> int:
+	var main = get_tree().current_scene
+	if main and "my_team" in main:
+		return main.my_team
+	return 0
+
 func _physics_process(delta: float) -> void:
 	attack_timer = max(0.0, attack_timer - delta)
-
 	match state:
 		UnitState.SCOUT:  _do_scout(delta)
 		UnitState.LOCKED: _do_locked(delta)
 		UnitState.CASTLE: _do_castle()
-
 	if team == Team.PLAYER:
 		global_position.y = max(global_position.y, ENEMY_CASTLE_Y)
 	else:
 		global_position.y = min(global_position.y, PLAYER_CASTLE_Y)
-
 	queue_redraw()
 
 func _do_scout(delta: float) -> void:
@@ -57,21 +61,15 @@ func _do_scout(delta: float) -> void:
 
 func _do_locked(delta: float) -> void:
 	if _locked_target == null or not is_instance_valid(_locked_target):
-		# ターゲット消滅 → 即座に周囲をスキャンして小屋を探す
 		_locked_target = _scan_in_range()
-		if _locked_target != null:
-			# そのままLOCKED継続
-			return
-		state = UnitState.SCOUT
+		if _locked_target == null:
+			state = UnitState.SCOUT
 		return
-
-	# 小屋が攻撃不可になった場合（別チームが攻撃中）
 	if _locked_target.is_in_group("huts") and not _locked_target.can_be_attacked_by(team):
 		_locked_target = _scan_in_range()
 		if _locked_target == null:
 			state = UnitState.SCOUT
 		return
-
 	var dist = global_position.distance_to(_locked_target.global_position)
 	if dist <= melee_range:
 		if attack_timer <= 0.0:
@@ -126,7 +124,6 @@ func _do_attack(target: Node2D) -> void:
 			var remaining = hp - HUT_ATTACK_POWER
 			target.capture(team, unit_type, max(remaining, 0.1))
 			_self_damage(HUT_ATTACK_POWER)
-			# 制圧直後：周囲を即スキャン
 			if is_inside_tree():
 				_locked_target = _scan_in_range()
 				state = UnitState.LOCKED if _locked_target != null else UnitState.SCOUT
@@ -145,22 +142,31 @@ func take_damage(amount: float) -> void:
 	_self_damage(amount)
 
 func _draw() -> void:
+	# 赤チームはcanvas_transformで180度回転されているので逆回転して正立表示
+	if _get_my_team() == 1:
+		draw_set_transform(Vector2.ZERO, PI, Vector2.ONE)
+
 	draw_rect(Rect2(-14, -14, 28, 28), _body_color)
 	draw_rect(Rect2(-14, -22, 28, 5), Color(0.25, 0.0, 0.0))
 	draw_rect(Rect2(-14, -22, 28.0 * clamp(hp / max_hp, 0, 1), 5), Color(0.15, 0.9, 0.15))
 
 	if state == UnitState.LOCKED and _locked_target != null and is_instance_valid(_locked_target):
-		var local_t = _locked_target.global_position - global_position
-		var dist = local_t.length()
+		# world座標でのターゲット方向
+		var world_dir = _locked_target.global_position - global_position
+		# draw_set_transform(PI)で描画空間が反転しているので方向を反転
+		# 自分が青なら通常、赤なら逆
+		if _get_my_team() == 1:
+			world_dir = -world_dir
+		var dist = world_dir.length()
 		if dist >= 2.0:
-			var dir = local_t.normalized()
+			var dir = world_dir.normalized()
 			var arrow_len = min(dist - 16.0, 70.0)
 			if arrow_len >= 4.0:
 				var s = dir * 16.0
 				var e = s + dir * arrow_len
 				var perp = Vector2(-dir.y, dir.x)
 				draw_line(s, e, Color(1, 1, 0.3, 0.28), 1.0)
-				draw_line(e, e - dir*5 + perp*4, Color(1, 1, 0.3, 0.28), 1.0)
-				draw_line(e, e - dir*5 - perp*4, Color(1, 1, 0.3, 0.28), 1.0)
+				draw_line(e, e - dir * 5 + perp * 4, Color(1, 1, 0.3, 0.28), 1.0)
+				draw_line(e, e - dir * 5 - perp * 4, Color(1, 1, 0.3, 0.28), 1.0)
 	elif state == UnitState.SCOUT:
 		draw_arc(Vector2.ZERO, attack_range, 0, TAU, 48, Color(1, 1, 1, 0.18), 1.0)

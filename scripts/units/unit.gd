@@ -1,6 +1,7 @@
 extends Node2D
 
-enum Team { PLAYER = 0, ENEMY = 1, NEUTRAL = 2 }
+enum Team { PLAYER = 0, ENEMY = 1 }
+enum UnitState { SCOUT, LOCKED, CASTLE }
 
 var team: int = Team.PLAYER
 var unit_type: int = 0
@@ -13,11 +14,13 @@ var melee_range: float = 18.0
 var attack_cooldown: float = 1.2
 var attack_timer: float = 0.0
 var _body_color: Color = Color(0.2, 0.5, 1.0)
-var _locked_unit = null
+var state: int = UnitState.SCOUT
+var _locked_target = null
 
-const CASTLE_ATTACK_POWER = 5.0
 const ENEMY_CASTLE_Y = 120.0
 const PLAYER_CASTLE_Y = 740.0
+const CASTLE_ATTACK_POWER = 5.0
+const HUT_ATTACK_POWER = 5.0
 
 func _ready() -> void:
 	add_to_group("units")
@@ -29,34 +32,69 @@ func setup(color: Color) -> void:
 func _physics_process(delta: float) -> void:
 	attack_timer = max(0.0, attack_timer - delta)
 
-	if _locked_unit != null and not is_instance_valid(_locked_unit):
-		_locked_unit = null
+	match state:
+		UnitState.SCOUT:  _do_scout(delta)
+		UnitState.LOCKED: _do_locked(delta)
+		UnitState.CASTLE: _do_castle()
 
-	if _locked_unit == null:
-		_locked_unit = _scan_for_unit()
-
-	if _locked_unit != null:
-		var dist = global_position.distance_to(_locked_unit.global_position)
-		if dist <= melee_range:
-			if attack_timer <= 0.0:
-				_locked_unit.take_damage(attack_power)
-				attack_timer = attack_cooldown
-		else:
-			var dir = (_locked_unit.global_position - global_position).normalized()
-			global_position += dir * move_speed * delta
-	else:
-		_march_to_castle(delta)
-		_attack_castle()
-
-	# 城壁を通り抜けないようにクランプ
 	if team == Team.PLAYER:
 		global_position.y = max(global_position.y, ENEMY_CASTLE_Y)
-	elif team == Team.ENEMY:
+	else:
 		global_position.y = min(global_position.y, PLAYER_CASTLE_Y)
 
 	queue_redraw()
 
-func _scan_for_unit():
+func _do_scout(delta: float) -> void:
+	_locked_target = _scan_in_range()
+	if _locked_target != null:
+		state = UnitState.LOCKED
+		return
+	_march_forward(delta)
+	if team == Team.PLAYER and global_position.y <= ENEMY_CASTLE_Y + 2:
+		state = UnitState.CASTLE
+	elif team == Team.ENEMY and global_position.y >= PLAYER_CASTLE_Y - 2:
+		state = UnitState.CASTLE
+
+func _do_locked(delta: float) -> void:
+	if _locked_target == null or not is_instance_valid(_locked_target):
+		# ターゲット消滅 → 即座に周囲をスキャンして小屋を探す
+		_locked_target = _scan_in_range()
+		if _locked_target != null:
+			# そのままLOCKED継続
+			return
+		state = UnitState.SCOUT
+		return
+
+	# 小屋が攻撃不可になった場合（別チームが攻撃中）
+	if _locked_target.is_in_group("huts") and not _locked_target.can_be_attacked_by(team):
+		_locked_target = _scan_in_range()
+		if _locked_target == null:
+			state = UnitState.SCOUT
+		return
+
+	var dist = global_position.distance_to(_locked_target.global_position)
+	if dist <= melee_range:
+		if attack_timer <= 0.0:
+			_do_attack(_locked_target)
+			attack_timer = attack_cooldown
+	else:
+		global_position += (_locked_target.global_position - global_position).normalized() * move_speed * delta
+
+func _do_castle() -> void:
+	if attack_timer > 0.0:
+		return
+	var main = get_tree().current_scene
+	if not main:
+		return
+	attack_timer = attack_cooldown
+	if team == Team.PLAYER:
+		main.take_enemy_damage(CASTLE_ATTACK_POWER)
+		_self_damage(CASTLE_ATTACK_POWER)
+	else:
+		main.take_player_damage(CASTLE_ATTACK_POWER)
+		_self_damage(CASTLE_ATTACK_POWER)
+
+func _scan_in_range():
 	var best = null
 	var best_dist = attack_range
 	for u in get_tree().get_nodes_in_group("units"):
@@ -66,56 +104,63 @@ func _scan_for_unit():
 		if d <= best_dist:
 			best_dist = d
 			best = u
+	for h in get_tree().get_nodes_in_group("huts"):
+		if not h.can_be_attacked_by(team):
+			continue
+		var d = global_position.distance_to(h.global_position)
+		if d <= best_dist:
+			best_dist = d
+			best = h
 	return best
 
-func _march_to_castle(delta: float) -> void:
+func _march_forward(delta: float) -> void:
 	if team == Team.PLAYER:
 		global_position.y -= move_speed * delta
-	elif team == Team.ENEMY:
+	else:
 		global_position.y += move_speed * delta
 
-func _attack_castle() -> void:
-	if attack_timer > 0.0:
-		return
-	var main = get_tree().current_scene
-	if team == Team.PLAYER and global_position.y <= ENEMY_CASTLE_Y:
-		if main.has_method("take_enemy_damage"):
-			main.take_enemy_damage(CASTLE_ATTACK_POWER)
-			take_damage(CASTLE_ATTACK_POWER)
-			attack_timer = attack_cooldown
-	elif team == Team.ENEMY and global_position.y >= PLAYER_CASTLE_Y:
-		if main.has_method("take_player_damage"):
-			main.take_player_damage(CASTLE_ATTACK_POWER)
-			take_damage(CASTLE_ATTACK_POWER)
-			attack_timer = attack_cooldown
+func _do_attack(target: Node2D) -> void:
+	if target.is_in_group("huts"):
+		var excess = target.take_damage(HUT_ATTACK_POWER, team, unit_type)
+		if excess > 0:
+			var remaining = hp - HUT_ATTACK_POWER
+			target.capture(team, unit_type, max(remaining, 0.1))
+			_self_damage(HUT_ATTACK_POWER)
+			# 制圧直後：周囲を即スキャン
+			if is_inside_tree():
+				_locked_target = _scan_in_range()
+				state = UnitState.LOCKED if _locked_target != null else UnitState.SCOUT
+		else:
+			_self_damage(HUT_ATTACK_POWER)
+	elif target.has_method("take_damage"):
+		target.take_damage(attack_power)
 
-func take_damage(amount: float) -> void:
+func _self_damage(amount: float) -> void:
 	hp -= amount
 	queue_redraw()
 	if hp <= 0:
 		queue_free()
+
+func take_damage(amount: float) -> void:
+	_self_damage(amount)
 
 func _draw() -> void:
 	draw_rect(Rect2(-14, -14, 28, 28), _body_color)
 	draw_rect(Rect2(-14, -22, 28, 5), Color(0.25, 0.0, 0.0))
 	draw_rect(Rect2(-14, -22, 28.0 * clamp(hp / max_hp, 0, 1), 5), Color(0.15, 0.9, 0.15))
 
-	if _locked_unit == null:
-		draw_arc(Vector2.ZERO, attack_range, 0, TAU, 48, Color(1, 1, 1, 0.2), 1.0)
-	else:
-		if not is_instance_valid(_locked_unit):
-			return
-		var local_t = _locked_unit.global_position - global_position
+	if state == UnitState.LOCKED and _locked_target != null and is_instance_valid(_locked_target):
+		var local_t = _locked_target.global_position - global_position
 		var dist = local_t.length()
-		if dist < 2.0:
-			return
-		var dir = local_t.normalized()
-		var arrow_len = min(dist - 16.0, 70.0)
-		if arrow_len < 4.0:
-			return
-		var s = dir * 16.0
-		var e = s + dir * arrow_len
-		var perp = Vector2(-dir.y, dir.x)
-		draw_line(s, e, Color(1, 1, 0.3, 0.28), 1.0)
-		draw_line(e, e - dir * 5 + perp * 4, Color(1, 1, 0.3, 0.28), 1.0)
-		draw_line(e, e - dir * 5 - perp * 4, Color(1, 1, 0.3, 0.28), 1.0)
+		if dist >= 2.0:
+			var dir = local_t.normalized()
+			var arrow_len = min(dist - 16.0, 70.0)
+			if arrow_len >= 4.0:
+				var s = dir * 16.0
+				var e = s + dir * arrow_len
+				var perp = Vector2(-dir.y, dir.x)
+				draw_line(s, e, Color(1, 1, 0.3, 0.28), 1.0)
+				draw_line(e, e - dir*5 + perp*4, Color(1, 1, 0.3, 0.28), 1.0)
+				draw_line(e, e - dir*5 - perp*4, Color(1, 1, 0.3, 0.28), 1.0)
+	elif state == UnitState.SCOUT:
+		draw_arc(Vector2.ZERO, attack_range, 0, TAU, 48, Color(1, 1, 1, 0.18), 1.0)

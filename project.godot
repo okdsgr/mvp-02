@@ -11,9 +11,13 @@ config_version=5
 [application]
 
 config/name="mvpc002"
-run/main_scene="uid://b7ktua1ag886r"
+run/main_scene="res://scenes/lobby.tscn"
 config/features=PackedStringArray("4.6", "Mobile")
 config/icon="res://icon.svg"
+
+[autoload]
+
+GameState="*res://scripts/game_state.gd"
 
 [display]
 

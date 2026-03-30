@@ -4,10 +4,10 @@ enum HutState { NEUTRAL = 0, PLAYER = 1, ENEMY = 2 }
 
 var state: int = HutState.NEUTRAL
 var hut_type: int = 0
-var hp: float = 80.0
-var max_hp: float = 80.0
-var hp_regen: float = 0.25
-var spawn_cooldown: float = 3.0
+var hp: float = 400.0
+var max_hp: float = 400.0
+var hp_regen: float = 5.0   # 5.0HP/秒
+var spawn_cooldown: float = 5.0
 var spawn_timer: float = 0.0
 var captured_by: int = -1
 var captured_unit_type: int = 0
@@ -30,6 +30,9 @@ const UNIT_SPAWN_COLORS = [
 	Color(0.95, 0.2, 0.2),
 ]
 
+const UNIT_SPAWN_COUNT = [3, 1, 1, 1]
+const LADYBUG_OFFSETS = [Vector2(-22, 0), Vector2(0, 0), Vector2(22, 0)]
+
 func _ready() -> void:
 	add_to_group("huts")
 
@@ -43,7 +46,7 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _physics_process(delta: float) -> void:
-	if state != HutState.NEUTRAL and captured_by >= 0 and hp >= max_hp * 0.99:
+	if state != HutState.NEUTRAL and captured_by >= 0 and hp > 0.0:
 		spawn_timer += delta
 		if spawn_timer >= spawn_cooldown:
 			spawn_timer = 0.0
@@ -53,13 +56,18 @@ func _spawn_unit() -> void:
 	var main = get_tree().current_scene
 	if not main:
 		return
-	var unit = Node2D.new()
-	unit.set_script(load("res://scripts/units/unit.gd"))
-	unit.position = global_position + Vector2(randf_range(-24, 24), 0)
-	unit.team = captured_by
-	unit.unit_type = captured_unit_type
-	unit.call_deferred("setup", UNIT_SPAWN_COLORS[captured_by])
-	main.add_child(unit)
+	var count = UNIT_SPAWN_COUNT[captured_unit_type]
+	for k in range(count):
+		var offset = Vector2.ZERO
+		if captured_unit_type == 0:
+			offset = LADYBUG_OFFSETS[k]
+		var unit = Node2D.new()
+		unit.set_script(load("res://scripts/units/unit.gd"))
+		unit.position = global_position + Vector2(randf_range(-24, 24), 0) + offset
+		unit.team = captured_by
+		unit.unit_type = captured_unit_type
+		unit.call_deferred("setup", UNIT_SPAWN_COLORS[captured_by])
+		main.add_child(unit)
 
 func can_be_attacked_by(team: int) -> bool:
 	if state == HutState.PLAYER and team == 0:
@@ -86,7 +94,7 @@ func capture(team: int, unit_type: int, remaining_hp: float) -> void:
 	captured_unit_type = unit_type
 	state = HutState.PLAYER if team == 0 else HutState.ENEMY
 	hp = max(remaining_hp, 1.0)
-	max_hp = 80.0
+	max_hp = 400.0
 	spawn_timer = 0.0
 	attacker_team = -1
 	attack_pressure = [0.0, 0.0]
@@ -102,7 +110,6 @@ func _get_my_team() -> int:
 	return 0
 
 func _draw() -> void:
-	# 赤チームのcanvas_transform(180度回転)を打ち消す
 	if _get_my_team() == 1:
 		draw_set_transform(Vector2.ZERO, PI, Vector2.ONE)
 

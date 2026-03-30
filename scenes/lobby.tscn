@@ -19,7 +19,7 @@ offset_top = 140.0
 offset_right = 110.0
 offset_bottom = 140.0
 theme_override_font_sizes/font_size = 42
-text = "虫の戦争 PvP"
+text = "Bug's Conquer"
 
 [node name="StatusLabel" type="Label" parent="UI" unique_id=347311581]
 offset_left = 40.0
@@ -32,44 +32,59 @@ autowrap_mode = 2
 
 [node name="HostBtn" type="Button" parent="UI" unique_id=1438015311]
 offset_left = 80.0
-offset_top = 380.0
+offset_top = 360.0
 offset_right = 460.0
-offset_bottom = 444.0
+offset_bottom = 416.0
 theme_override_font_sizes/font_size = 22
 text = "ホストとして開始"
 
 [node name="IPInput" type="LineEdit" parent="UI" unique_id=762088616]
 offset_left = 80.0
-offset_top = 480.0
+offset_top = 530.0
 offset_right = 460.0
-offset_bottom = 532.0
+offset_bottom = 582.0
 theme_override_font_sizes/font_size = 18
 placeholder_text = "IPアドレス (例: 192.168.1.x)"
 
 [node name="JoinBtn" type="Button" parent="UI" unique_id=1812626772]
 offset_left = 80.0
-offset_top = 548.0
+offset_top = 592.0
 offset_right = 460.0
-offset_bottom = 612.0
+offset_bottom = 656.0
 theme_override_font_sizes/font_size = 22
 text = "参加する"
 
 [node name="StartBtn" type="Button" parent="UI" unique_id=1227864880]
 modulate = Color(0.3, 1, 0.4, 1)
 offset_left = 80.0
-offset_top = 660.0
+offset_top = 680.0
 offset_right = 460.0
-offset_bottom = 732.0
+offset_bottom = 752.0
 theme_override_font_sizes/font_size = 26
 text = "ゲーム開始！"
 
 [node name="LocalLabel" type="Label" parent="UI" unique_id=1559873200]
 modulate = Color(0.7, 0.7, 0.7, 1)
 offset_left = 40.0
-offset_top = 780.0
+offset_top = 790.0
 offset_right = 500.0
-offset_bottom = 840.0
+offset_bottom = 850.0
 theme_override_font_sizes/font_size = 14
 text = "同じPCでテストする場合はホストを起動後
 別ウィンドウで 127.0.0.1 に参加"
 autowrap_mode = 2
+
+[node name="LanIPLabel" type="Label" parent="UI" unique_id=304769921]
+offset_left = 80.0
+offset_top = 424.0
+offset_right = 460.0
+offset_bottom = 456.0
+theme_override_colors/font_color = Color(0.6, 0.9, 0.6, 1)
+horizontal_alignment = 1
+
+[node name="LanHostBtn" type="Button" parent="UI" unique_id=361902641]
+offset_left = 80.0
+offset_top = 460.0
+offset_right = 460.0
+offset_bottom = 516.0
+text = "LAN経由ホストとして開始"

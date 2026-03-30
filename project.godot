@@ -27,6 +27,7 @@ window/size/initial_position_type=2
 window/size/initial_position=Vector2i(200, 80)
 window/size/window_width_override=540
 window/size/window_height_override=960
+window/stretch/mode="canvas_items"
 
 [editor_plugins]
 

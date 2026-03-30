@@ -10,6 +10,14 @@ const UNIT_COLORS_BY_TEAM = [
 ]
 const CARD_ACCENT = [Color(0.2,0.5,1.0), Color(0.2,0.8,0.3), Color(0.1,0.8,0.8), Color(0.6,0.2,0.9)]
 
+# フィールド色 #7f4920=赤陣, #127195=青陣
+const COLOR_FIELD_RED  = Color(0.498, 0.286, 0.125)
+const COLOR_FIELD_BLUE = Color(0.071, 0.443, 0.584)
+const COLOR_FIELD_GREEN = Color(0.075, 0.525, 0.235)
+
+const UNIT_SPAWN_COUNT = [3, 1, 1, 1]
+const LADYBUG_OFFSETS = [Vector2(-22, 0), Vector2(0, 0), Vector2(22, 0)]
+
 var my_team: int = 0
 var is_pvp: bool = false
 var mana: float = 5.0
@@ -30,7 +38,7 @@ var last_mana_mult: int = 1
 var enemy_mana: float = 3.0
 var enemy_elapsed: float = 0.0
 const ENEMY_MANA_MAX = 10.0
-const ENEMY_SPAWN_COST = 3
+const ENEMY_SPAWN_COST = 2
 var vp_w: float = 540.0
 var vp_h: float = 960.0
 
@@ -55,9 +63,6 @@ func _ready() -> void:
 		multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	print("main: my_team=", my_team)
 
-	# 赤チームはcanvas_transformで180度回転
-	# 回転後: 赤城壁(world上部)→画面下、青城壁(world下部)→画面上
-	# 両チームとも PlayerCastle(画面下)=自分、EnemyCastle(画面上)=敵 で統一
 	if my_team == 1:
 		var ct = Transform2D()
 		ct[0] = Vector2(-1.0, 0.0)
@@ -65,7 +70,15 @@ func _ready() -> void:
 		ct[2] = Vector2(vp_w, vp_h)
 		get_viewport().canvas_transform = ct
 
-	# UI割り当て：両チームとも同じ（画面下=自分、画面上=敵）
+	# フィールドColorRectに色を直接設定（_draw()より後に描画されるため）
+	# my_team==0: 上=敵=赤, 下=自=青
+	# my_team==1: canvas_transformで上下反転済みなので同じ設定でOK
+	var enemy_color = COLOR_FIELD_RED  if my_team == 0 else COLOR_FIELD_BLUE
+	var player_color = COLOR_FIELD_BLUE if my_team == 0 else COLOR_FIELD_RED
+	$EnemyZone.color = enemy_color
+	$NeutralZone.color = COLOR_FIELD_GREEN
+	$PlayerZone.color = player_color
+
 	my_castle_bg = $UI/PlayerCastle/BG
 	opp_castle_bg = $UI/EnemyCastle/BG
 	my_hp_bar = $UI/PlayerCastle/HPBar
@@ -73,7 +86,6 @@ func _ready() -> void:
 	$UI/PlayerCastle/Label.text = "自分の城壁"
 	$UI/EnemyCastle/Label.text = "敵の城壁"
 
-	# 自分の城壁色=自チームカラー、敵の城壁色=相手チームカラー
 	if my_team == 0:
 		my_castle_bg.color = Color(0.1, 0.2, 0.5)
 		opp_castle_bg.color = Color(0.5, 0.1, 0.1)
@@ -144,7 +156,11 @@ func _get_card_at(pos: Vector2) -> int:
 func _input(event: InputEvent) -> void:
 	if game_over:
 		if event is InputEventKey and event.pressed and event.keycode == KEY_R:
-			get_tree().reload_current_scene()
+			if is_pvp:
+				if multiplayer.is_server():
+					_restart_rpc.rpc()
+			else:
+				get_tree().reload_current_scene()
 		return
 	if not (event is InputEventMouseButton):
 		return
@@ -169,6 +185,10 @@ func _input(event: InputEvent) -> void:
 				_try_spawn_unit(_screen_to_world(pos), drag_card)
 				selected_card = -1
 			drag_card = -1
+
+@rpc("authority", "call_local", "reliable")
+func _restart_rpc() -> void:
+	get_tree().reload_current_scene()
 
 func _is_valid_deploy_pos(sp: Vector2) -> bool:
 	if sp.y >= vp_h * 0.60 and sp.y <= vp_h * 0.89:
@@ -195,13 +215,18 @@ func _spawn_unit_rpc(wp: Vector2, ci: int, team: int) -> void:
 	_do_spawn_unit(wp, ci, team)
 
 func _do_spawn_unit(wp: Vector2, ci: int, team: int) -> void:
-	var unit = Node2D.new()
-	unit.set_script(load("res://scripts/units/unit.gd"))
-	unit.position = wp
-	unit.team = team
-	unit.unit_type = ci
-	unit.call_deferred("setup", UNIT_COLORS_BY_TEAM[team][ci])
-	add_child(unit)
+	var count = UNIT_SPAWN_COUNT[ci]
+	for k in range(count):
+		var offset = Vector2.ZERO
+		if ci == 0:
+			offset = LADYBUG_OFFSETS[k]
+		var unit = Node2D.new()
+		unit.set_script(load("res://scripts/units/unit.gd"))
+		unit.position = wp + offset
+		unit.team = team
+		unit.unit_type = ci
+		unit.call_deferred("setup", UNIT_COLORS_BY_TEAM[team][ci])
+		add_child(unit)
 
 func take_player_damage(amount: float) -> void:
 	if is_pvp:
@@ -232,10 +257,14 @@ func _apply_damage(side: int, amount: float) -> void:
 			_end_game(my_team != 1)
 
 func _get_mana_mult(t: float) -> int:
-	if t >= 60: return 8
-	elif t >= 45: return 4
-	elif t >= 30: return 3
-	elif t >= 15: return 2
+	if t >= 60:
+		return 8
+	elif t >= 45:
+		return 4
+	elif t >= 30:
+		return 3
+	elif t >= 15:
+		return 2
 	return 1
 
 func _process(delta: float) -> void:
@@ -262,18 +291,23 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _spawn_com_unit() -> void:
-	var unit = Node2D.new()
-	unit.set_script(load("res://scripts/units/unit.gd"))
-	unit.position = Vector2(randf_range(60, 480), 180)
-	unit.team = 1
-	unit.unit_type = randi() % 4
-	unit.call_deferred("setup", Color(1.0, 0.25, 0.25))
-	add_child(unit)
+	var ci = randi() % 4
+	var count = UNIT_SPAWN_COUNT[ci]
+	for k in range(count):
+		var offset = Vector2.ZERO
+		if ci == 0:
+			offset = LADYBUG_OFFSETS[k]
+		var unit = Node2D.new()
+		unit.set_script(load("res://scripts/units/unit.gd"))
+		unit.position = Vector2(randf_range(60, 480), 180) + offset
+		unit.team = 1
+		unit.unit_type = ci
+		unit.call_deferred("setup", UNIT_COLORS_BY_TEAM[1][ci])
+		add_child(unit)
 
 func _update_ui() -> void:
 	mana_bar.value = mana
 	mana_label.text = str(int(mana)) + " / " + str(int(MANA_MAX))
-	# 自分のHP: team0=player_hp(青城壁), team1=enemy_hp(赤城壁)
 	my_hp_bar.value = player_hp if my_team == 0 else enemy_hp
 	opp_hp_bar.value = enemy_hp if my_team == 0 else player_hp
 
@@ -310,15 +344,15 @@ func _end_game(win: bool) -> void:
 		h.set_physics_process(false)
 		h.set_process(false)
 	var label = $UI/GameOverLabel
-	label.text = "VICTORY!\n\nRキーでリスタート" if win else "GAME OVER\n\nRキーでリスタート"
+	var restart_hint = "\n\nRキーでリスタート" if (not is_pvp or multiplayer.is_server()) else "\n\nホストがRキーでリスタート"
+	label.text = ("VICTORY!" if win else "GAME OVER") + restart_hint
 	label.modulate = Color(0.2, 0.9, 0.2) if win else Color(0.9, 0.2, 0.2)
 	label.visible = true
 
 func _draw() -> void:
-	var mc = Color(0.1, 0.2, 0.5, 0.15) if my_team == 0 else Color(0.5, 0.1, 0.1, 0.15)
-	draw_rect(Rect2(0, vp_h * 0.60, vp_w, vp_h * 0.29), mc)
-	draw_rect(Rect2(0, vp_h - 92, vp_w, 92), Color(0.08, 0.08, 0.12))
-	draw_rect(Rect2(40, vp_h - 98, vp_w - 80, 6), Color(0.15, 0.15, 0.2))
+	# カードUIエリア
+	draw_rect(Rect2(0, vp_h - 92, vp_w, 92), Color(0.06, 0.08, 0.06))
+	draw_rect(Rect2(40, vp_h - 98, vp_w - 80, 6), Color(0.12, 0.15, 0.12))
 	draw_rect(Rect2(40, vp_h - 98, (vp_w - 80) * (mana / MANA_MAX), 6), Color(0.3, 0.6, 1.0))
 	for i in range(4):
 		var r = card_rects[i]

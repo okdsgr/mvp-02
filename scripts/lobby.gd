@@ -24,25 +24,43 @@ func _ready() -> void:
 	start_btn.visible = false
 	ip_input.text = "127.0.0.1"
 
-func _get_lan_ip() -> String:
+func _get_all_lan_ips() -> Array:
+	var ips = []
 	for addr in IP.get_local_addresses():
-		# IPv4 かつ ループバック・リンクローカル除外
-		if "." in addr and not addr.begins_with("127.") and not addr.begins_with("169.254."):
+		if not "." in addr:
+			continue
+		if addr.begins_with("127."):
+			continue
+		if addr.begins_with("169.254."):
+			continue
+		ips.append(addr)
+	return ips
+
+# 192.168.x.x を優先、なければ最初のIPを返す
+func _get_best_lan_ip(ips: Array) -> String:
+	for addr in ips:
+		if addr.begins_with("192.168."):
 			return addr
+	for addr in ips:
+		if addr.begins_with("10."):
+			return addr
+	if ips.size() > 0:
+		return ips[0]
 	return "127.0.0.1"
 
 func _on_host_pressed() -> void:
-	print("host button pressed (localhost)")
-	_start_host("127.0.0.1")
+	_start_host()
 
 func _on_lan_host_pressed() -> void:
-	print("LAN host button pressed")
-	var lan_ip = _get_lan_ip()
-	ip_input.text = lan_ip
-	lan_ip_label.text = "LAN IP: " + lan_ip + "  ← 相手に伝えてください"
-	_start_host(lan_ip)
+	var ips = _get_all_lan_ips()
+	var best = _get_best_lan_ip(ips)
+	ip_input.text = best
+	# 全IPを表示して手動で選べるようにする
+	var all_str = " / ".join(ips)
+	lan_ip_label.text = "選択中: " + best + "\n全IP: " + all_str
+	_start_host()
 
-func _start_host(display_ip: String) -> void:
+func _start_host() -> void:
 	var peer = ENetMultiplayerPeer.new()
 	var err = peer.create_server(PORT, MAX_PLAYERS)
 	print("create_server err=", err)
@@ -56,13 +74,12 @@ func _start_host(display_ip: String) -> void:
 	join_btn.disabled = true
 
 func _on_join_pressed() -> void:
-	print("join button pressed")
 	var ip = ip_input.text.strip_edges()
 	if ip == "":
 		ip = "127.0.0.1"
 	var peer = ENetMultiplayerPeer.new()
 	var err = peer.create_client(ip, PORT)
-	print("create_client err=", err)
+	print("create_client ip=", ip, " err=", err)
 	if err != OK:
 		status_label.text = "接続失敗: " + str(err)
 		return
@@ -96,11 +113,9 @@ func _on_connection_failed() -> void:
 	join_btn.disabled = false
 
 func _on_start_pressed() -> void:
-	print("start pressed is_server=", multiplayer.is_server())
 	if multiplayer.is_server():
 		_start_game.rpc()
 
 @rpc("authority", "call_local", "reliable")
 func _start_game() -> void:
-	print("_start_game called is_server=", multiplayer.is_server())
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
